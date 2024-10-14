@@ -1,0 +1,93 @@
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Text Checker',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: TextCheckerPage(),
+    );
+  }
+}
+
+class TextCheckerPage extends StatefulWidget {
+  @override
+  _TextCheckerPageState createState() => _TextCheckerPageState();
+}
+
+class _TextCheckerPageState extends State<TextCheckerPage> {
+  final TextEditingController _controller = TextEditingController();
+  String _result = '';
+
+  Future<void> checkText(String text) async {
+    final response = await http.post(
+      Uri.parse('https://api.languagetoolplus.com/v2/check'),
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: {
+        'text': text,
+        'language': 'en-US', 
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      setState(() {
+        _result = data['matches'].isNotEmpty
+            ? data['matches']
+                .map((match) => '${match['message']} in "${text.substring(match['offset'], match['offset'] + match['length'])}"')
+                .join('\n')
+            : 'No errors found';
+      });
+    } else {
+      setState(() {
+        _result = 'Error checking text.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Text Checker'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _controller,
+              decoration: InputDecoration(labelText: 'Enter text to check'),
+              maxLines: 8,
+              keyboardType: TextInputType.multiline,
+            ),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                checkText(_controller.text);
+              },
+              child: Text('Check Text'),
+            ),
+            SizedBox(height: 16),
+            Text('Result:', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Text(_result),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
